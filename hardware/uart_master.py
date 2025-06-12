@@ -63,7 +63,8 @@ class UARTMaster:
 
     def run(self):
         '''
-        Main loop for communication with elapsed time measurement.
+        Main loop for communication with elapsed time measurement. This is currently
+        used for testing but could easily be modified for continuous use.
         '''
         try:
             # create Payload with cmd (2 letters) and floats for pfwd, sfwd, paft, saft

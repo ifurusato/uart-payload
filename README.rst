@@ -6,7 +6,10 @@ UART Payload
 A simple UART that passes a Payload object between master and slave.
 
 The Payload is comprised of a two character command and four float
-values.
+values:
+```
+    payload = Payload("MO", 10.0, 20.0, -10.0, -20.0)
+```
 
 
 Files
