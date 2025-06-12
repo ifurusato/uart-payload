@@ -47,14 +47,15 @@ class AsyncUARTManager:
         self.loop_thread.join()
         
     def _send_packet_sync(self, payload):
-        # Ensure Payload is converted to bytes using `to_bytes()` (or `__bytes__` internally)
         packet_bytes = bytes(payload)  # Calls __bytes__ internally or to_bytes explicitly
         self.ser.write(packet_bytes)
         self.ser.flush()
 #       self._log.debug(Style.DIM + "sent: {}".format(repr(payload)))
 
     def send_packet(self, payload):
-        """Synchronous wrapper: schedule async send on background loop."""
+        '''
+        Synchronous wrapper: schedule async send on background loop.
+        '''
         future = asyncio.run_coroutine_threadsafe(
             self._send_packet_async(payload), self.loop)
         return future.result()  # wait for completion
@@ -75,7 +76,9 @@ class AsyncUARTManager:
             return None
         
     def receive_packet(self):
-        """Synchronous wrapper: schedule async receive on background loop."""
+        '''
+        Synchronous wrapper: schedule async receive on background loop.
+        '''
         future = asyncio.run_coroutine_threadsafe(
             self._receive_packet_async(), self.loop)
         return future.result()
@@ -85,7 +88,9 @@ class AsyncUARTManager:
         return await loop.run_in_executor(self.executor, self._receive_packet_sync)
     
     def receive_values(self):
-        """Convenience method to receive a Payload and return the tuple (cmd, pfwd, sfwd, paft, saft)."""
+        '''
+        Convenience method to receive a Payload and return the tuple (cmd, pfwd, sfwd, paft, saft).
+        '''
         payload = self.receive_packet()
         if payload:
             return (payload.cmd.decode('ascii'), payload.pfwd, payload.sfwd, payload.paft, payload.saft)
