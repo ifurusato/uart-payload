@@ -11,6 +11,15 @@ The Payload is comprised of a two character command and four float values::
 
 The master sends a Payload to the slave, which responds with a Payload.
 
+Hardware Configuration
+**********************
+
+While you can certainly change pin assignments, the current ones are::
+
+    Raspberry Pi ->  Pico RP2040 
+    GPIO 14 TX   ->  GP4 UART1 RX
+    GPIO 15 TX   ->  GP5 UART1 RX
+
 
 Files
 *****
