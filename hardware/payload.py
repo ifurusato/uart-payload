@@ -18,7 +18,7 @@ class Payload:
     PACK_FORMAT = '<2sffff'  # 2-char cmd, 4 floats
     PAYLOAD_SIZE = struct.calcsize(PACK_FORMAT)  # Size of cmd+floats only, no CRC or header
     CRC_SIZE = 1
-    PACKET_SIZE = len(Payload.SYNC_HEADER) + PAYLOAD_SIZE + CRC_SIZE  # header + payload + crc
+    PACKET_SIZE = len(SYNC_HEADER) + PAYLOAD_SIZE + CRC_SIZE  # header + payload + crc
 
     def __init__(self, cmd, pfwd, sfwd, paft, saft):
         self.cmd = cmd.encode('ascii') if isinstance(cmd, str) else cmd
