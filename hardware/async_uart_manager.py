@@ -16,8 +16,9 @@ from concurrent.futures import ThreadPoolExecutor
 from colorama import init, Fore, Style
 init()
 
-from hardware.payload import Payload
+from hardware.payload import Payload, SYNC_HEADER
 from core.logger import Logger, Level
+import time
 
 class AsyncUARTManager:
     def __init__(self, port='/dev/serial0', baudrate=115200, timeout=1):
@@ -26,13 +27,18 @@ class AsyncUARTManager:
         self.baudrate = baudrate
         self.timeout = timeout
         self.ser = None
+        self._log.info('using port {} at baud rate of {}'.format(port, baudrate))
         self.executor = ThreadPoolExecutor(max_workers=1)
         # dedicated asyncio loop and thread
         self.loop = asyncio.new_event_loop()
         self.loop_thread = Thread(target=self.loop.run_forever, daemon=True)
         self.loop_thread.start()
         self._log.info('ready.')
-        
+        # Buffer for sync-header-based framing
+        self._rx_buffer = bytearray()
+        self._rx_timeout = 0.25  # seconds
+        self._log.info('ready.')
+
     def open(self):
         if self.ser is None or not self.ser.is_open:
             self.ser = serial.Serial(self.port_name, self.baudrate, timeout=self.timeout)
@@ -48,6 +54,9 @@ class AsyncUARTManager:
         
     def _send_packet_sync(self, payload):
         packet_bytes = bytes(payload)  # Calls __bytes__ internally or to_bytes explicitly
+        # Ensure sync header is present for robust protocol
+        if not packet_bytes.startswith(SYNC_HEADER):
+            packet_bytes = SYNC_HEADER + packet_bytes[len(SYNC_HEADER):]
         self.ser.write(packet_bytes)
         self.ser.flush()
 #       self._log.debug(Style.DIM + "sent: {}".format(repr(payload)))
@@ -65,15 +74,49 @@ class AsyncUARTManager:
         await loop.run_in_executor(self.executor, self._send_packet_sync, payload)
         
     def _receive_packet_sync(self):
-        packet = self.ser.read(Payload.PACKET_SIZE)
-        if len(packet) < Payload.PACKET_SIZE:
-            return None
-        try:
-            payload = Payload.from_bytes(packet)
-            return payload
-        except ValueError as e:
-            self._log.error("receive error: {}".format(e))
-            return None
+        '''
+        Reads bytes, synchronizes on sync header, and returns the first valid Payload found.
+        '''
+        start_time = time.time()
+        while True:
+            if self.ser.in_waiting:
+                data = self.ser.read(self.ser.in_waiting)
+                self._rx_buffer += data
+                self._log.debug('read {} bytes from serial; buffer size now: {}'.format(len(data), len(self._rx_buffer)))
+                start_time = time.time()
+            idx = self._rx_buffer.find(SYNC_HEADER)
+            if idx == -1:
+                # Not found: trim buffer if too large
+                if len(self._rx_buffer) > len(SYNC_HEADER):
+                    self._rx_buffer = self._rx_buffer[-(len(SYNC_HEADER)-1):]
+                time.sleep(0.005)
+                if time.time() - start_time > self._rx_timeout:
+                    self._log.error("UART RX timeout; sync header not found, clearing buffer.")
+                    self._rx_buffer = bytearray()
+                    start_time = time.time()
+                continue
+
+            # Found sync header: do we have a full packet?
+            if len(self._rx_buffer) - idx >= Payload.PACKET_SIZE:
+                packet = self._rx_buffer[idx: idx + Payload.PACKET_SIZE]
+                self._rx_buffer = self._rx_buffer[idx + Payload.PACKET_SIZE:]
+                try:
+                    payload = Payload.from_bytes(packet)
+                    self._log.debug("received: {}".format(repr(payload)))
+                    return payload
+                except ValueError as e:
+                    self._log.error("receive error: {}. Resyncing...".format(e))
+                    # Remove just the first header byte to attempt resync
+                    self._rx_buffer = self._rx_buffer[idx+1:]
+                    continue
+            else:
+                # Not enough bytes yet for a full packet
+                time.sleep(0.005)
+                if time.time() - start_time > self._rx_timeout:
+                    self._log.error('UART RX timeout; incomplete packet, clearing buffer.')
+                    self._rx_buffer = bytearray()
+                    start_time = time.time()
+                continue
         
     def receive_packet(self):
         '''

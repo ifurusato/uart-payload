@@ -84,6 +84,7 @@ class UARTMaster:
                 elapsed_time = (end_time - start_time).total_seconds() * 1000  # Convert to milliseconds
                 self._log.info(Fore.GREEN + "tx elapsed: {:.2f} ms".format(elapsed_time))
                 # no sleep here, running as fast as the system allows
+                time.sleep(0.5)
 
         except KeyboardInterrupt:
             self._log.info("ctrl-c caught, exiting…")

@@ -7,12 +7,12 @@
 #
 # author:   Murray Altheim
 # created:  2025-06-12
-# modified: 2025-06-12
+# modified: 2025-06-22
 
 from machine import UART, Pin
 import time
-from payload import Payload
 from core.logger import Logger, Level
+from payload import Payload, SYNC_HEADER
 
 class UARTSlave:
     def __init__(self, uart_id=1, baudrate=115200, rx_pin=5, tx_pin=4, led_pin=25):
@@ -29,45 +29,82 @@ class UARTSlave:
         self.uart = UART(self.uart_id, baudrate=self.baudrate, bits=8, parity=None, stop=1, tx=Pin(self.tx_pin), rx=Pin(self.rx_pin))
         self._verbose = False
         self._log.info('UART slave ready at baud rate: {}.'.format(baudrate))
+        # Buffer and timing for sync protocol
+        self._buffer = bytearray()
+        self._last_rx = time.ticks_ms()
+        self._timeout_ms = 250  # ms
+
+    def set_verbose(self, verbose: bool):
+        self._verbose = verbose
+
+    def flash_led(self, duration_ms=50):
+        self.led.value(1)
+        time.sleep_ms(duration_ms)
+        self.led.value(0)
 
     def receive_packet(self):
-        self.led.on()  # Turn on the LED at the start of receiving a packet
-        buf = bytearray()
-        while len(buf) < Payload.PACKET_SIZE:
+        """
+        Waits for a valid payload packet, synchronizing on the sync header.
+        Returns a Payload instance.
+        """
+        while True:
+            # Read available bytes from UART
             if self.uart.any():
-                buf.extend(self.uart.read(1))
+                data = self.uart.read(self.uart.any())
+                self._buffer += data
+                self._last_rx = time.ticks_ms()
+                if self._verbose:
+                    self._log.debug("Read {} bytes, buffer size now {}".format(len(data), len(self._buffer)))
             else:
-                time.sleep(0.01) # avoid busy wait
-        if self._verbose:
-            self._log.debug("raw packet: {}".format(' '.join("{:02X}".format(b) for b in buf)))
-        # check CRC
-        received_crc = buf[-1]
-        computed_crc = Payload.calculate_crc8(buf[:-1])
-        if self._verbose:
-            self._log.debug("received CRC: {:02X}, Computed CRC: {:02X}".format(received_crc, computed_crc))
-        if received_crc != computed_crc:
-            self._log.error("CRC mismatch!")
-            return None
-        try:
-            # Decode the packet to a Payload object
-            payload = Payload.from_bytes(buf)
-            if self._verbose:
-                self._log.info("received: {}".format(payload))  # debug print for confirmation
-            return payload
-        except Exception as e:
-            self._log.error("error during payload decoding: {}".format(e))
-            return None
-        finally:
-            self.led.off()
+                # Timeout for incomplete packets
+                if self._buffer and time.ticks_diff(time.ticks_ms(), self._last_rx) > self._timeout_ms:
+                    self._log.error("UART RX timeout; clearing buffer")
+                    self._buffer = bytearray()
+                time.sleep(0.005)
+                continue
 
-    def send_packet(self, payload):
-        packet = payload.to_bytes()  # Directly call to_bytes() method
-        if not isinstance(packet, (bytes, bytearray)):
-            self._log.error("packet is not a byte-like object:", type(packet))
-            return  # Or handle as needed
-#       self._log.debug("sending packet: {} (type: {})".format(packet, type(packet)))  # Debugging the packet content and type
-        self.uart.write(packet)  # Send the byte data to UART
-        if self._verbose:
-            self._log.info("sent: {}".format(payload))  # debug print for confirmation
+            # Look for sync header
+            idx = self._buffer.find(SYNC_HEADER)
+            if idx == -1:
+                # Trim buffer so it doesn't grow unbounded
+                if len(self._buffer) > len(SYNC_HEADER):
+                    if self._verbose:
+                        self._log.debug("Sync header not found; trimming buffer")
+                    self._buffer = self._buffer[-(len(SYNC_HEADER)-1):]
+                continue
+
+            # Check if enough bytes for a packet
+            if len(self._buffer) - idx >= Payload.PACKET_SIZE:
+                packet = self._buffer[idx: idx + Payload.PACKET_SIZE]
+                self._buffer = self._buffer[idx + Payload.PACKET_SIZE:]
+                try:
+                    pl = Payload.from_bytes(packet)
+                    if self._verbose:
+                        self._log.info("Valid packet received: {}".format(pl))
+                    self.flash_led()
+                    return pl
+                except Exception as e:
+                    self._log.error("Packet decode error: {}. Resyncing...".format(e))
+                    # Remove just the first header byte to attempt resync
+                    self._buffer = self._buffer[idx+1:]
+                    continue
+            else:
+                # Wait for more data
+                continue
+
+    def send_packet(self, payload: Payload):
+        """
+        Serializes and sends a payload packet with sync header.
+        """
+        try:
+            packet = payload.to_bytes()
+            if not packet.startswith(SYNC_HEADER):
+                packet = SYNC_HEADER + packet[len(SYNC_HEADER):]
+            self.uart.write(packet)
+            if self._verbose:
+                self._log.info("Sent packet: {}".format(packet))
+            self.flash_led()
+        except Exception as e:
+            self._log.error("Failed to send packet: {}".format(e))
 
 #EOF

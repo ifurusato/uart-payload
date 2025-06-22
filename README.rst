@@ -21,6 +21,32 @@ While you can certainly change pin assignments, the current ones are::
     GPIO 15 TX   ->  GP5 UART1 RX
 
 
+Payload Protocol
+****************
+
+Protocol Change: Files to Update for Sync Header
+================================================
+
++-----------------------------------------+----------------+-----------------------------------------------------------+
+| File                                   | Change Needed? | Notes                                                     |
++=========================================+================+===========================================================+
+| ``payload.py`` (shared)                 | YES            | Add/use SYNC_HEADER, update (de)serialization             |
++-----------------------------------------+----------------+-----------------------------------------------------------+
+| ``upy/uart_slave.py``                   | YES            | Read and search for sync header in input stream           |
++-----------------------------------------+----------------+-----------------------------------------------------------+
+| ``hardware/async_uart_manager.py``      | YES            | Prepend sync header on send, search for it on receive     |
++-----------------------------------------+----------------+-----------------------------------------------------------+
+| ``hardware/uart_master.py``             | MAYBE          | Only if direct byte stream manipulation is done           |
++-----------------------------------------+----------------+-----------------------------------------------------------+
+| ``upy/main.py``                         | NO             | Protocol remains the same, just instantiates slave        |
++-----------------------------------------+----------------+-----------------------------------------------------------+
+| ``README.rst``                          | OPTIONAL       | Good practice to document protocol change                 |
++-----------------------------------------+----------------+-----------------------------------------------------------+
+
+Notes:
+ - The ``payload.py`` file is shared between master and slave environments.
+
+
 Files
 *****
 
