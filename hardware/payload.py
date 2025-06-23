@@ -64,18 +64,4 @@ class Payload:
             crc = CRC8_TABLE[crc ^ b]
         return crc
 
-#   @staticmethod
-#   def calculate_crc8(data: bytes) -> int:
-#       # simple CRC-8 (not optimized)
-#       crc = 0
-#       for b in data:
-#           crc ^= b
-#           for _ in range(8):
-#               if crc & 0x80:
-#                   crc = (crc << 1) ^ 0x07
-#               else:
-#                   crc <<= 1
-#               crc &= 0xFF # keep CRC 8-bit
-#       return crc
-
 #EOF

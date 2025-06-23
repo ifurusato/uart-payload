@@ -32,7 +32,7 @@ class UARTMaster:
         '''
         Send a Payload object after converting it to bytes.
         '''
-        packet_bytes = bytes(payload)
+        packet_bytes = payload.to_bytes()
         self._log.info(f"MASTER TX BYTES: {packet_bytes.hex(' ')}") # TEMP
         self.uart.send_packet(payload)
         self._log.info("master sent: {}".format(payload))
@@ -43,7 +43,7 @@ class UARTMaster:
         '''
         response_payload = self.uart.receive_packet()
         if response_payload:
-#           self._log.info("received: {}".format(response_payload))
+            self._log.info("received: {}".format(response_payload))
             return response_payload
         else:
             raise ValueError("no valid response received.")
@@ -85,8 +85,8 @@ class UARTMaster:
                 end_time = dt.now()
                 elapsed_time = (end_time - start_time).total_seconds() * 1000  # Convert to milliseconds
                 self._log.info(Fore.GREEN + "tx elapsed: {:.2f} ms".format(elapsed_time))
-                # no sleep here, running as fast as the system allows
-                time.sleep(0.5)
+                # with no sleep here, would be running as fast as the system allows
+                time.sleep(1.0)
 
         except KeyboardInterrupt:
             self._log.info("ctrl-c caught, exiting…")
