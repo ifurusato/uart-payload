@@ -7,7 +7,7 @@
 #
 # author:   Murray Altheim
 # created:  2025-06-12
-# modified: 2025-06-12
+# modified: 2025-06-23
 
 import time
 from datetime import datetime as dt
@@ -15,16 +15,21 @@ from colorama import init, Fore, Style
 init()
 
 from hardware.async_uart_manager import AsyncUARTManager
+from hardware.sync_uart_manager import SyncUARTManager
 from hardware.payload import Payload
 from core.logger import Logger, Level
 
 class UARTMaster:
 
-    ERROR_PAYLOAD = Payload("ER", -1.0, -1.0, -1.0, -1.0)  # Singleton error payload
+    ERROR_PAYLOAD = Payload("ER", -1.0, -1.0, -1.0, -1.0) # singleton error payload
 
     def __init__(self, port='/dev/serial0', baudrate=115200):
         self._log = Logger('uart-master', Level.INFO)
-        self.uart = AsyncUARTManager(port=port, baudrate=baudrate)
+        _use_async_uart_manager = False # config?
+        if _use_async_uart_manager:
+            self.uart = AsyncUARTManager(port=port, baudrate=baudrate)
+        else:
+            self.uart = SyncUARTManager(port=port, baudrate=baudrate)
         self.uart.open()
         self._log.info('UART master ready at baud rate: {}.'.format(baudrate))
 
