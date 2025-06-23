@@ -67,40 +67,53 @@ class UARTSlave:
     async def receive_packet(self):
         while True:
             if self.uart.any():
+                # read all available bytes at once
                 data = self.uart.read(self.uart.any())
                 self._buffer += data
                 self._last_rx = time.ticks_ms()
                 if self._verbose:
                     self._log.info("read {} bytes, buffer size now {}".format(len(data), len(self._buffer)))
             else:
+                # timeout: clear buffer to avoid garbage growth
                 if self._buffer and time.ticks_diff(time.ticks_ms(), self._last_rx) > self._timeout_ms:
                     self._log.error("UART RX timeout; clearing buffer…")
                     self._buffer = bytearray()
-                await asyncio.sleep(0.005)
+                await asyncio.sleep(0.001)
                 continue
-            idx = self._buffer.find(Payload.SYNC_HEADER)
-            if idx == -1:
-                if len(self._buffer) > len(Payload.SYNC_HEADER):
-                    if self._verbose:
-                        self._log.info("sync header not found; trimming buffer…")
-                    self._buffer = self._buffer[-(len(Payload.SYNC_HEADER)-1):]
-                continue
-            if len(self._buffer) - idx >= Payload.PACKET_SIZE:
-                packet = self._buffer[idx: idx + Payload.PACKET_SIZE]
-                self._buffer = self._buffer[idx + Payload.PACKET_SIZE:]
-                try:
-                    _payload = Payload.from_bytes(packet)
-                    if self._verbose:
-                        self._log.info(Style.DIM + "valid packet received: {}".format(_payload))
-                    self.flash_led()
-                    return _payload
-                except Exception as e:
-                    self._log.error("packet decode error: {}. Resyncing...".format(e))
-                    self._buffer = self._buffer[idx+1:]
+            # check if buffer starts with SYNC_HEADER (avoid .find if possible)
+            if self._buffer.startswith(Payload.SYNC_HEADER):
+                if len(self._buffer) >= Payload.PACKET_SIZE:
+                    packet = self._buffer[:Payload.PACKET_SIZE]
+                    self._buffer = self._buffer[Payload.PACKET_SIZE:]
+                    try:
+                        _payload = Payload.from_bytes(packet)
+                        if self._verbose:
+                            self._log.info(Style.DIM + "valid packet received: {}".format(_payload))
+                        self.flash_led()
+                        return _payload
+                    except Exception:
+                        # corrupt packet: remove SYNC_HEADER and resync
+                        self._log.error("packet decode error: {}. resyncing…".format(e))
+                        self._buffer = self._buffer[1:]
+                        continue
+                else:
+                    # not enough data yet for a full packet
+                    await asyncio.sleep(0)
                     continue
             else:
-                await asyncio.sleep(0)
-                continue
+                # slow-path: search for SYNC_HEADER
+                idx = self._buffer.find(Payload.SYNC_HEADER)
+                if idx == -1:
+                    # keep only enough bytes to possibly contain the next header
+                    if len(self._buffer) > len(Payload.SYNC_HEADER):
+                        self._buffer = self._buffer[-(len(Payload.SYNC_HEADER) - 1):]
+                    await asyncio.sleep(0)
+                    continue
+                else:
+                    # discard bytes up to found SYNC_HEADER
+                    self._buffer = self._buffer[idx:]
+                    await asyncio.sleep(0)
+                    continue
 
     async def send_packet(self, payload: Payload):
         try:

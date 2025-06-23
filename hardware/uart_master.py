@@ -33,7 +33,7 @@ class UARTMaster:
         Send a Payload object after converting it to bytes.
         '''
         packet_bytes = payload.to_bytes()
-        self._log.info(f"MASTER TX BYTES: {packet_bytes.hex(' ')}") # TEMP
+#       self._log.info(f"MASTER TX BYTES: {packet_bytes.hex(' ')}") # TEMP
         self.uart.send_packet(payload)
         self._log.info(Fore.MAGENTA + "master sent: {}".format(payload))
 
@@ -68,24 +68,31 @@ class UARTMaster:
         used for testing but could easily be modified for continuous use.
         '''
         try:
-            # create Payload with cmd (2 letters) and floats for pfwd, sfwd, paft, saft
-            payload = Payload("MO", 10.0, 20.0, -10.0, -20.0)
+            count     = 0.0
+            direction = 1.0
+#           payload = Payload("MO", 10.0, 10.0, -10.0, -20.0) # fixed payload
 
             while True:
                 start_time = dt.now()
+                # reverse direction cleanly at bounds
+                if (direction > 0 and count >= 100.0) or (direction < 0 and count <= -100.0):
+                    direction *= -1
+                count += direction * 1.0 # step size
+                # create Payload with cmd (2 letters) and floats for pfwd, sfwd, paft, saft
+                payload = Payload("MO", count, count, -10.0, -20.0)
                 # send the Payload object
                 self.send_payload(payload)
-                try:
-                    self.receive_payload()
-                except ValueError as e:
-                    self._log.error("error receiving payload: {}:".format(e))
-                    continue  # optionally, continue the loop without stopping
+#               try:
+                self.receive_payload()
+#               except ValueError as e:
+#                   self._log.error("error receiving payload: {}:".format(e))
+#                   continue  # optionally, continue the loop without stopping
                 # calculate elapsed time
                 end_time = dt.now()
                 elapsed_time = (end_time - start_time).total_seconds() * 1000  # Convert to milliseconds
                 self._log.info(Fore.GREEN + "tx elapsed: {:.2f} ms".format(elapsed_time))
                 # with no sleep here, would be running as fast as the system allows
-                time.sleep(1.0)
+#               time.sleep(1.0)
 
         except KeyboardInterrupt:
             self._log.info("ctrl-c caught, exiting…")

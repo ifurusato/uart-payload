@@ -10,11 +10,11 @@
 # modified: 2025-06-23
 
 import uasyncio as asyncio
-import time
-from payload import Payload
-from core.logger import Logger, Level
+from colorama import Fore, Style
 
+from payload import Payload
 from uart_slave import UARTSlave
+from core.logger import Logger, Level
 
 async def main():
     await asyncio.sleep(3)
@@ -23,13 +23,13 @@ async def main():
     _uart_id = 4
     _baudrate = 1_000_000 # 115200 460800 921600 
     slave = UARTSlave(uart_id=_uart_id, baudrate=_baudrate)
-    slave.set_verbose(True)
+#   slave.set_verbose(True)
     slave.enable_led(True)
     _log.info("UART slave: waiting for command from master…")
     while True:
         packet = await slave.receive_packet()
         if packet is not None:
-#           _log.info("received payload: {}".format(packet))
+#           _log.info(Fore.MAGENTA + "received payload: {}".format(packet))
             # respond with ACK + same payload command but zeroed floats (example)
             ack_payload = Payload("AK", 0.0, 0.0, 0.0, 0.0)
             await slave.send_packet(ack_payload)

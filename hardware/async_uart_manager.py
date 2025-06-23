@@ -23,16 +23,16 @@ import time
 class AsyncUARTManager:
     def __init__(self, port='/dev/serial0', baudrate=115200, timeout=1):
         self._log = Logger('async-uart-mgr', Level.INFO)
-        self.port_name = port
-        self.baudrate = baudrate
-        self.timeout = timeout
-        self.ser = None
-        self._log.info('using port {} at baud rate of {}'.format(port, baudrate))
-        self.executor = ThreadPoolExecutor(max_workers=1)
+        self._port_name = port
+        self._baudrate  = baudrate
+        self._timeout   = timeout
+        self._serial    = None
+        self._log.info('using port {} at {} baud.'.format(port, baudrate))
+        self._executor  = ThreadPoolExecutor(max_workers=1)
         # dedicated asyncio loop and thread
-        self.loop = asyncio.new_event_loop()
-        self.loop_thread = Thread(target=self.loop.run_forever, daemon=True)
-        self.loop_thread.start()
+        self._loop = asyncio.new_event_loop()
+        self._loop_thread = Thread(target=self._loop.run_forever, daemon=True)
+        self._loop_thread.start()
         self._log.info('ready.')
         # Buffer for sync-header-based framing
         self._rx_buffer = bytearray()
@@ -40,26 +40,26 @@ class AsyncUARTManager:
         self._log.info('ready.')
 
     def open(self):
-        if self.ser is None or not self.ser.is_open:
-            self.ser = serial.Serial(self.port_name, self.baudrate, timeout=self.timeout)
-            self._log.info("serial port {} opened.".format(self.port_name))
+        if self._serial is None or not self._serial.is_open:
+            self._serial = serial.Serial(self._port_name, self._baudrate, timeout=self._timeout)
+            self._log.info("serial port {} opened.".format(self._port_name))
             
     def close(self):
-        if self.ser and self.ser.is_open:
-            self.ser.close()
+        if self._serial and self._serial.is_open:
+            self._serial.close()
             self._log.info("serial port closed.")
-        self.executor.shutdown(wait=False)
-        self.loop.call_soon_threadsafe(self.loop.stop)
-        self.loop_thread.join()
+        self._executor.shutdown(wait=False)
+        self._loop.call_soon_threadsafe(self._loop.stop)
+        self._loop_thread.join()
         
     def _send_packet_sync(self, payload):
         packet_bytes = payload.to_bytes()
         # ensure sync header is present for robust protocol
         if not packet_bytes.startswith(Payload.SYNC_HEADER):
             packet_bytes = Payload.SYNC_HEADER + packet_bytes[len(Payload.SYNC_HEADER):]
-        self.ser.write(packet_bytes)
-        self.ser.flush()
-        self._log.info(Style.DIM + "sent: {}".format(repr(payload)))
+        self._serial.write(packet_bytes)
+        self._serial.flush()
+#       self._log.info(Style.DIM + "sent: {}".format(repr(payload)))
 
     def send_packet(self, payload):
         '''
@@ -67,12 +67,12 @@ class AsyncUARTManager:
         '''
         self._log.debug('send payload.')
         future = asyncio.run_coroutine_threadsafe(
-            self._send_packet_async(payload), self.loop)
+            self._send_packet_async(payload), self._loop)
         return future.result() # wait for completion
         
     async def _send_packet_async(self, payload):
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(self.executor, self._send_packet_sync, payload)
+        await loop.run_in_executor(self._executor, self._send_packet_sync, payload)
         
     def _receive_packet_sync(self):
         '''
@@ -80,8 +80,8 @@ class AsyncUARTManager:
         '''
         start_time = time.time()
         while True:
-            if self.ser.in_waiting:
-                data = self.ser.read(self.ser.in_waiting)
+            if self._serial.in_waiting:
+                data = self._serial.read(self._serial.in_waiting)
 #               self._log.debug(f"RAW RX BYTES: {data.hex()}")
                 self._rx_buffer += data
                 self._log.debug('read {} bytes from serial; buffer size now: {}'.format(len(data), len(self._rx_buffer)))
@@ -125,12 +125,12 @@ class AsyncUARTManager:
         '''
         self._log.debug('receive packet.')
         future = asyncio.run_coroutine_threadsafe(
-            self._receive_packet_async(), self.loop)
+            self._receive_packet_async(), self._loop)
         return future.result()
         
     async def _receive_packet_async(self):
         loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(self.executor, self._receive_packet_sync)
+        return await loop.run_in_executor(self._executor, self._receive_packet_sync)
     
     def receive_values(self):
         '''
