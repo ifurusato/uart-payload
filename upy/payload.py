@@ -10,6 +10,7 @@
 # modified: 2025-06-22
 
 import struct
+from crc8_table import CRC8_TABLE
 
 class Payload:
     # Sync header: 'zz' for human-readability. To switch to a binary header, just uncomment the next line.
@@ -29,6 +30,12 @@ class Payload:
 
     def __repr__(self):
         return f"Payload(cmd={self.cmd.decode('ascii')}, pfwd={self.pfwd}, sfwd={self.sfwd}, paft={self.paft}, saft={self.saft})"
+
+    def to_bytes(self):
+        '''
+        A convenience method that calls __bytes__().
+        '''
+        return self.__bytes__()
 
     def __bytes__(self):
         # Pack the data into bytes (cmd, floats)
@@ -52,16 +59,23 @@ class Payload:
 
     @staticmethod
     def calculate_crc8(data: bytes) -> int:
-        # Simple CRC-8 (not optimized)
         crc = 0
         for b in data:
-            crc ^= b
-            for _ in range(8):
-                if crc & 0x80:
-                    crc = (crc << 1) ^ 0x07
-                else:
-                    crc <<= 1
-                crc &= 0xFF  # Keep CRC 8-bit
+            crc = CRC8_TABLE[crc ^ b]
         return crc
+
+#   @staticmethod
+#   def calculate_crc8(data: bytes) -> int:
+#       # simple CRC-8 (not optimized)
+#       crc = 0
+#       for b in data:
+#           crc ^= b
+#           for _ in range(8):
+#               if crc & 0x80:
+#                   crc = (crc << 1) ^ 0x07
+#               else:
+#                   crc <<= 1
+#               crc &= 0xFF # keep CRC 8-bit
+#       return crc
 
 #EOF
