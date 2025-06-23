@@ -9,6 +9,8 @@
 # created:  2025-06-12
 # modified: 2025-06-23
 #
+# A UART slave for the STM32, using UART 1-4.
+#
 # STM32H562 (WeActStudio 64-pin CoreBoard) UART Default Pin Mapping
 #
 #     +--------+-------+-------+
@@ -37,7 +39,7 @@ from colorama import Fore, Style
 from core.logger import Logger, Level
 from payload import Payload
 
-class UARTSlave:
+class Stm32UartSlave:
     def __init__(self, uart_id=1, baudrate=115200):
         self._log = Logger('uart-slave', Level.INFO)
         self.uart_id  = uart_id

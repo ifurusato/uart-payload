@@ -13,7 +13,8 @@ import uasyncio as asyncio
 from colorama import Fore, Style
 
 from payload import Payload
-from uart_slave import UARTSlave
+from stm32_uart_slave import Stm32UartSlave
+#from rp2040_uart_slave import RP2040UartSlave
 from core.logger import Logger, Level
 
 async def wait_a_bit():
@@ -34,7 +35,8 @@ async def main():
     _log = Logger('main', Level.INFO)
     _uart_id = 4
     _baudrate = 1_000_000 # 115200 460800 921600 
-    slave = UARTSlave(uart_id=_uart_id, baudrate=_baudrate)
+    slave = Stm32UartSlave(uart_id=_uart_id, baudrate=_baudrate)
+#   slave = RP2040UartSlave(uart_id=_uart_id, baudrate=_baudrate)
 #   slave.set_verbose(True)
 #   slave.enable_led(True)
     _log.info("UART slave: waiting for command from master…")
