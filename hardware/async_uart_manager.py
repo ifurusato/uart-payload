@@ -82,6 +82,7 @@ class AsyncUARTManager:
         while True:
             if self.ser.in_waiting:
                 data = self.ser.read(self.ser.in_waiting)
+                self._log.info(f"🍀 RAW RX BYTES: {data.hex()}")
                 self._rx_buffer += data
                 self._log.debug('read {} bytes from serial; buffer size now: {}'.format(len(data), len(self._rx_buffer)))
                 start_time = time.time()

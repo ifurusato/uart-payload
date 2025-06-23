@@ -9,14 +9,18 @@
 # created:  2025-06-12
 # modified: 2025-06-23
 
+import time
 from payload import Payload
 from core.logger import Logger, Level
 
 from uart_slave import UARTSlave
 
 def main():
+
+    time.sleep(3)
+
     _log = Logger('main', Level.INFO)
-    _uart_id = 1
+    _uart_id = 4
     _baudrate = 460800 # 115200 921600 1_000_000 
     slave = UARTSlave(uart_id=_uart_id, baudrate=_baudrate)
     _log.info("UART slave: waiting for command from master…")

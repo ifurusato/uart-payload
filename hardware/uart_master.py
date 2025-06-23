@@ -35,7 +35,7 @@ class UARTMaster:
         packet_bytes = payload.to_bytes()
         self._log.info(f"MASTER TX BYTES: {packet_bytes.hex(' ')}") # TEMP
         self.uart.send_packet(payload)
-        self._log.info("master sent: {}".format(payload))
+        self._log.info(Fore.MAGENTA + "master sent: {}".format(payload))
 
     def receive_payload(self):
         '''
@@ -43,7 +43,7 @@ class UARTMaster:
         '''
         response_payload = self.uart.receive_packet()
         if response_payload:
-            self._log.info("received: {}".format(response_payload))
+            self._log.info(Fore.MAGENTA + "received: {}".format(response_payload))
             return response_payload
         else:
             raise ValueError("no valid response received.")
@@ -60,7 +60,6 @@ class UARTMaster:
             return response_payload
         except ValueError as e:
             self._log.error("error during communication: {}".format(e))
-#           return None
             return self.ERROR_PAYLOAD
 
     def run(self):

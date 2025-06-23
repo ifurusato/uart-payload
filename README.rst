@@ -1,4 +1,3 @@
-
 *****************************************************************
 UART Payload
 *****************************************************************
@@ -19,6 +18,12 @@ While you can certainly change pin assignments, the current ones are::
     Raspberry Pi ->  Pico RP2040 
     GPIO 14 TX   ->  GP4 UART1 RX
     GPIO 15 TX   ->  GP5 UART1 RX
+
+Important: see Status below
+
+When using the console on the slave you will corrupt UART 1 as that's
+the serial connection between the Raspberry Pi and the microcontroller,
+so if verbosity is enabled you must use a different UART, e.g., 4.
 
 
 Payload Protocol
@@ -63,6 +68,8 @@ Files
 +--------------------------------+----------------------------------------------+
 | hardware/payload.py            | payload passed on transactions               |
 +--------------------------------+----------------------------------------------+
+| hardware/crc8_table.py         | CRC8 table of constants, used by Payload     |
++--------------------------------+----------------------------------------------+
 | hardware/async_uart_manager.py | asynchronous UART manager                    |
 +--------------------------------+----------------------------------------------+
 
@@ -77,6 +84,8 @@ Files to be copied to RP2040:
 +--------------------------------+----------------------------------------------+
 | upy/payload.py                 | payload passed on transactions               |
 +--------------------------------+----------------------------------------------+
+| upy/crc8_table.py              | CRC8 table of constants, used by Payload     |
++--------------------------------+----------------------------------------------+
 | upy/core/logger.py             | application core logger                      |
 +--------------------------------+----------------------------------------------+
 | upy/uart_slave.py              | UART slave class                             |
@@ -86,7 +95,13 @@ Files to be copied to RP2040:
 Status
 ******
 
-The code is new, but functional.
+The code is new, but functional. 
+
+The RP2040 is not currently supported as the code has been modified to work
+with an STM32H562. The RP2040 functionality will be (re-)supported in the future,
+but in the interim it's relatively trivial to modify the UART constructor in 
+`uart_slave.py` to conform with the requirements of the RP2040 (essentially setting
+its RX and TX pins).
 
 
 Support & Liability

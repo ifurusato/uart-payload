@@ -7,29 +7,43 @@
 #
 # author:   Murray Altheim
 # created:  2025-06-12
-# modified: 2025-06-22
+# modified: 2025-06-23
 #
-# pins on WeAct STM32F405/STM32H562:
+# STM32H562 (WeActStudio 64-pin CoreBoard) UART Default Pin Mapping
 #
-#    UART1_RX,PA9
-#    UART1_TX,PA10
+#     +--------+-------+-------+
+#     | UART   |  TX   |  RX   |
+#     +--------+-------+-------+
+#     | UART1  |  PA9  | PA10  |
+#     | UART2  |  PA2  | PA3   |
+#     | UART3  | PB10  | PB11  |
+#     | UART4  | PC10  | PC11  |
+#     +--------+-------+-------+
+#
+# Note:
+# - You cannot specify tx/rx pins in MicroPython's UART() constructor; use the default pins for each.
+#
+# Example usage:
+# uart2 = UART(2, baudrate=115200)  # Uses PA2 (TX), PA3 (RX)
+# uart3 = UART(3, baudrate=115200)  # Uses PB10 (TX), PB11 (RX)
 #
 
+import time
 from pyb import LED, Pin, UART
 from pyb import LED
-#from machine import UART, Pin
-import time
+from colorama import Fore, Style
+
 from core.logger import Logger, Level
 from payload import Payload
 
 class UARTSlave:
-    def __init__(self, uart_id=1, baudrate=115200):
+    def __init__(self, uart_id=2, baudrate=115200):
         self._log = Logger('uart-slave', Level.INFO)
-        self.baudrate = baudrate
         self.uart_id  = uart_id
+        self.baudrate = baudrate
         # set up LED
         self._led = LED(1)
-        # set up UART connection with custom TX and RX pins
+        # set up UART connection with default pins
         self.uart = UART(uart_id)
         self.uart.init(baudrate=baudrate, bits=8, parity=None, stop=1)
         # buffer and timing for sync protocol
@@ -43,9 +57,9 @@ class UARTSlave:
         self._verbose = verbose
 
     def flash_led(self, duration_ms=30):
-        self.led.on()
+        self._led.on()
         time.sleep_ms(duration_ms)
-        self.led.off()
+        self._led.off()
 
     def receive_packet(self):
         """
@@ -83,7 +97,7 @@ class UARTSlave:
                 try:
                     _payload = Payload.from_bytes(packet)
                     if self._verbose:
-                        self._log.info("valid packet received: {}".format(_payload))
+                        self._log.info(Style.DIM + "valid packet received: {}".format(_payload))
                     self.flash_led()
                     return _payload
                 except Exception as e:
@@ -105,7 +119,7 @@ class UARTSlave:
                 packet = Payload.SYNC_HEADER + packet[len(Payload.SYNC_HEADER):]
             self.uart.write(packet)
             if self._verbose:
-                self._log.info("Sent packet: {}".format(packet))
+                self._log.info("sent packet: {}".format(packet))
             self.flash_led()
         except Exception as e:
             self._log.error("failed to send packet: {}".format(e))
