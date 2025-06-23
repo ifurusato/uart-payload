@@ -16,8 +16,18 @@ from payload import Payload
 from uart_slave import UARTSlave
 from core.logger import Logger, Level
 
+async def wait_a_bit():
+    from pyb import LED
+    _led = LED(1)
+    for _ in range(3):
+        _led.toggle()
+        await asyncio.sleep(1)
+    _led.off()
+
 async def main():
-    await asyncio.sleep(3)
+
+    # delay the inevitable
+    await wait_a_bit()
 
     _log = Logger('main', Level.INFO)
     _uart_id = 4
@@ -39,7 +49,7 @@ async def main():
 def exec():
     asyncio.run(main())
 
-if __name__ == "__main__":
-    exec()
+#if __name__ == "__main__":
+exec()
 
 #EOF

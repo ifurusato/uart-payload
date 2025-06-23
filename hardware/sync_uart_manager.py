@@ -27,7 +27,7 @@ class SyncUARTManager:
         self._log.info('using port {} at {} baud.'.format(port, baudrate))
         # Buffer for sync-header-based framing
         self._rx_buffer  = bytearray()
-        self._rx_timeout = 0.030 # 30ms
+        self._rx_timeout = 0.015 # 15ms
         self._log.info('ready.')
 
     def open(self):
