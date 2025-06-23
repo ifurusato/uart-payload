@@ -28,6 +28,7 @@
 # uart3 = UART(3, baudrate=115200)  # Uses PB10 (TX), PB11 (RX)
 #
 
+import uasyncio as asyncio
 import time
 from pyb import LED, Pin, UART
 from pyb import LED
@@ -41,33 +42,30 @@ class UARTSlave:
         self._log = Logger('uart-slave', Level.INFO)
         self.uart_id  = uart_id
         self.baudrate = baudrate
-        # set up LED
         self._led = LED(1)
-        # set up UART connection with default pins
         self.uart = UART(uart_id)
         self.uart.init(baudrate=baudrate, bits=8, parity=None, stop=1)
-        # buffer and timing for sync protocol
         self._buffer = bytearray()
         self._last_rx = time.ticks_ms()
         self._timeout_ms = 250
-        self._verbose = False
+        self._verbose    = False
+        self._enable_led = False
         self._log.info('UART {} slave ready at baud rate: {}.'.format(uart_id, baudrate))
 
     def set_verbose(self, verbose: bool):
         self._verbose = verbose
 
-    def flash_led(self, duration_ms=30):
-        self._led.on()
-        time.sleep_ms(duration_ms)
-        self._led.off()
+    def enable_led(self, enable: bool):
+        self._enable_led = enable
 
-    def receive_packet(self):
-        """
-        Waits for a valid payload packet, synchronizing on the sync header.
-        Returns a Payload instance.
-        """
+    def flash_led(self, duration_ms=30):
+        if self._enable_led:
+            self._led.on()
+            time.sleep_ms(duration_ms)
+            self._led.off()
+
+    async def receive_packet(self):
         while True:
-            # read available bytes from UART
             if self.uart.any():
                 data = self.uart.read(self.uart.any())
                 self._buffer += data
@@ -75,22 +73,18 @@ class UARTSlave:
                 if self._verbose:
                     self._log.info("read {} bytes, buffer size now {}".format(len(data), len(self._buffer)))
             else:
-                # timeout for incomplete packets
                 if self._buffer and time.ticks_diff(time.ticks_ms(), self._last_rx) > self._timeout_ms:
                     self._log.error("UART RX timeout; clearing buffer…")
                     self._buffer = bytearray()
-                time.sleep(0.005)
+                await asyncio.sleep(0.005)
                 continue
-            # look for sync header
             idx = self._buffer.find(Payload.SYNC_HEADER)
             if idx == -1:
-                # trim buffer so it doesn't grow unbounded
                 if len(self._buffer) > len(Payload.SYNC_HEADER):
                     if self._verbose:
                         self._log.info("sync header not found; trimming buffer…")
                     self._buffer = self._buffer[-(len(Payload.SYNC_HEADER)-1):]
                 continue
-            # check if enough bytes for a packet
             if len(self._buffer) - idx >= Payload.PACKET_SIZE:
                 packet = self._buffer[idx: idx + Payload.PACKET_SIZE]
                 self._buffer = self._buffer[idx + Payload.PACKET_SIZE:]
@@ -102,17 +96,13 @@ class UARTSlave:
                     return _payload
                 except Exception as e:
                     self._log.error("packet decode error: {}. Resyncing...".format(e))
-                    # remove just the first header byte to attempt resync
                     self._buffer = self._buffer[idx+1:]
                     continue
             else:
-                # wait for more data
+                await asyncio.sleep(0)
                 continue
 
-    def send_packet(self, payload: Payload):
-        """
-        Serializes and sends a payload packet with sync header.
-        """
+    async def send_packet(self, payload: Payload):
         try:
             packet = payload.to_bytes()
             if not packet.startswith(Payload.SYNC_HEADER):
