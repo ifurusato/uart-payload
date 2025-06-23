@@ -59,7 +59,7 @@ async def main():
         _uart_id = 1
         _slave = RP2040UartSlave(uart_id=_uart_id, baudrate=_baudrate)
 
-#   _slave.set_verbose(True)
+    _slave.set_verbose(True)
 #   _slave.enable_led(True) # unsupported
     _log.info("UART slave: waiting for command from master…")
     while True:
