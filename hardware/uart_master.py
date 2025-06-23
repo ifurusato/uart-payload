@@ -10,6 +10,7 @@
 # modified: 2025-06-23
 
 import time
+from typing import Callable, Optional
 from datetime import datetime as dt
 from colorama import init, Fore, Style
 init()
@@ -26,11 +27,10 @@ class UARTMaster:
     def __init__(self, port='/dev/serial0', baudrate=115200):
         self._log = Logger('uart-master', Level.INFO)
         _use_async_uart_manager = False # config?
-        _timeout = 0.05 # 0.001 
         if _use_async_uart_manager:
-            self.uart = AsyncUARTManager(port=port, baudrate=baudrate, timeout=_timeout)
+            self.uart = AsyncUARTManager(port=port, baudrate=baudrate)
         else:
-            self.uart = SyncUARTManager(port=port, baudrate=baudrate, timeout=_timeout)
+            self.uart = SyncUARTManager(port=port, baudrate=baudrate)
         self.uart.open()
         self._log.info('UART master ready at baud rate: {}.'.format(baudrate))
 
@@ -68,38 +68,47 @@ class UARTMaster:
             self._log.error("error during communication: {}".format(e))
             return self.ERROR_PAYLOAD
 
-    def run(self):
+    def run(self, source: Optional[Callable[[], int]] = None):
         '''
         Main loop for communication with elapsed time measurement. This is currently
         used for testing but could easily be modified for continuous use.
         '''
         try:
-            count     = 0.0
-            direction = 1.0
-#           payload = Payload("MO", 10.0, 10.0, -10.0, -20.0) # fixed payload
+            if source is None:
+                print(Fore.GREEN + "source not provided, using counter.")
+            else:
+                print(Fore.GREEN + "using source for data.")
+
+            count = 0.0
 
             while True:
+
+                if source is not None:
+                    data = source()
+                    print("data: '{}'".format(data))
+                else:
+                    count += 1.0
+                    data = count
+
                 start_time = dt.now()
-                # reverse direction cleanly at bounds
-                if (direction > 0 and count >= 100.0) or (direction < 0 and count <= -100.0):
-                    direction *= -1
-                count += direction * 1.0 # step size
                 # create Payload with cmd (2 letters) and floats for pfwd, sfwd, paft, saft
-                payload = Payload("MO", count, count, -10.0, -20.0)
+                payload = Payload("MO", data, data, -10.0, -20.0)
                 # send the Payload object
                 self.send_payload(payload)
-#               try:
-                self.receive_payload()
-#               except ValueError as e:
-#                   self._log.error("error receiving payload: {}:".format(e))
-#                   continue  # optionally, continue the loop without stopping
+                try:
+                    self.receive_payload()
+                except ValueError as e:
+                    self._log.error("error receiving payload: {}:".format(e))
+                    continue  # optionally, continue the loop without stopping
                 # calculate elapsed time
                 end_time = dt.now()
                 elapsed_time = (end_time - start_time).total_seconds() * 1000  # Convert to milliseconds
                 self._log.info(Fore.GREEN + "tx elapsed: {:.2f} ms".format(elapsed_time))
                 # with no sleep here, would be running as fast as the system allows
-#               time.sleep(1.0)
+#               time.sleep(0.25)
 
+        except Exception as e:
+            self._log.error("{} raised in run loop: {}".format(type(e), e))
         except KeyboardInterrupt:
             self._log.info("ctrl-c caught, exiting…")
         finally:

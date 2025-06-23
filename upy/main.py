@@ -15,6 +15,8 @@ from colorama import Fore, Style
 from payload import Payload
 from core.logger import Logger, Level
 
+_IS_PYBOARD = True
+
 async def pyb_wait_a_bit():
     from pyb import LED
     _led = LED(1)
@@ -34,8 +36,6 @@ async def wait_a_bit():
         _led.off()
         await asyncio.sleep_ms(950)
     _led.off()
-
-_IS_PYBOARD = False
 
 async def main():
 

@@ -74,7 +74,7 @@ class Stm32UartSlave:
                 self._buffer += data
                 self._last_rx = time.ticks_ms()
                 if self._verbose:
-                    self._log.info("read {} bytes, buffer size now {}".format(len(data), len(self._buffer)))
+                    self._log.debug("read {} bytes, buffer size now {}".format(len(data), len(self._buffer)))
             else:
                 # timeout: clear buffer to avoid garbage growth
                 if self._buffer and time.ticks_diff(time.ticks_ms(), self._last_rx) > self._timeout_ms:
@@ -90,10 +90,10 @@ class Stm32UartSlave:
                     try:
                         _payload = Payload.from_bytes(packet)
                         if self._verbose:
-                            self._log.info(Style.DIM + "valid packet received: {}".format(_payload))
+                            self._log.info('rx: ' + Fore.GREEN + '{}'.format(_payload))
                         await self.flash_led()
                         return _payload
-                    except Exception as e:
+                    except Exception:
                         # corrupt packet: remove SYNC_HEADER and resync
                         self._log.error("packet decode error: {}. resyncing…".format(e))
                         self._buffer = self._buffer[1:]
@@ -124,7 +124,7 @@ class Stm32UartSlave:
                 packet = Payload.SYNC_HEADER + packet[len(Payload.SYNC_HEADER):]
             self.uart.write(packet)
             if self._verbose:
-                self._log.info("sent payload: " + Fore.GREEN + '{}'.format(payload))
+                self._log.info(Style.DIM + "tx: " + Fore.GREEN + '{}'.format(payload))
             await self.flash_led()
         except Exception as e:
             self._log.error("failed to send packet: {}".format(e))

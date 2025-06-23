@@ -21,11 +21,13 @@ from core.logger import Logger, Level
 import time
 
 class AsyncUARTManager:
-    def __init__(self, port='/dev/serial0', baudrate=115200, timeout=0.001):
+    def __init__(self, port='/dev/serial0', baudrate=115200, tx_timeout_ms=25, rx_timeout_ms=25):
         self._log = Logger('async-uart-mgr', Level.INFO)
         self._port_name  = port
         self._baudrate   = baudrate
-        self._timeout    = timeout
+        self._tx_timeout_s = tx_timeout_ms / 1000
+        self._rx_timeout_s = rx_timeout_ms / 1000
+        self._log.info('TX timeout: {}ms; RX timeout: {}ms'.format(tx_timeout_ms, rx_timeout_ms))
         self._serial     = None
         self._log.info('using port {} at {} baud.'.format(port, baudrate))
         self._executor   = ThreadPoolExecutor(max_workers=1)
@@ -36,12 +38,11 @@ class AsyncUARTManager:
         self._log.info('ready.')
         # Buffer for sync-header-based framing
         self._rx_buffer  = bytearray()
-        self._rx_timeout = 0.030 # 30ms
         self._log.info('ready.')
 
     def open(self):
         if self._serial is None or not self._serial.is_open:
-            self._serial = serial.Serial(self._port_name, self._baudrate, timeout=self._timeout)
+            self._serial = serial.Serial(self._port_name, self._baudrate, timeout=self._tx_timeout_s)
             self._log.info("serial port {} opened.".format(self._port_name))
             
     def close(self):
@@ -92,7 +93,7 @@ class AsyncUARTManager:
                 if len(self._rx_buffer) > len(Payload.SYNC_HEADER):
                     self._rx_buffer = self._rx_buffer[-(len(Payload.SYNC_HEADER)-1):]
                 time.sleep(0.005)
-                if time.time() - start_time > self._rx_timeout:
+                if time.time() - start_time > self._rx_timeout_s:
                     self._log.error("UART RX timeout; sync header not found, clearing buffer.")
                     self._rx_buffer = bytearray()
                     start_time = time.time()
@@ -113,7 +114,7 @@ class AsyncUARTManager:
             else:
                 # not enough bytes yet for a full packet
                 time.sleep(0.005)
-                if time.time() - start_time > self._rx_timeout:
+                if time.time() - start_time > self._rx_timeout_s:
                     self._log.error('UART RX timeout; incomplete packet, clearing buffer.')
                     self._rx_buffer = bytearray()
                     start_time = time.time()

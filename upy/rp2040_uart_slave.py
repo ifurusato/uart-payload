@@ -11,9 +11,6 @@
 #
 # A UART slave for the RP2040.
 #
-#  RX_PIN = 25
-#  TX_PIN = 24
-#
 # Note that pins may vary depending on the hardware implementation.
 #
 
@@ -25,8 +22,8 @@ from colorama import Fore, Style
 from core.logger import Logger, Level
 from payload import Payload
 
-class RP2040UartSlave:
-    def __init__(self, uart_id=1, baudrate=115200, rx_pin=25, tx_pin=24, led_pin=11):
+class UARTSlave:
+    def __init__(self, uart_id=1, baudrate=115200, rx_pin=5, tx_pin=4, led_pin=25):
         self._log = Logger('uart-slave', Level.INFO)
         self.uart_id  = uart_id
         self.baudrate = baudrate
@@ -36,7 +33,7 @@ class RP2040UartSlave:
         self.led_pin  = led_pin # Pin for the LED
         self._log.info('pins: rx={}; tx={}.'.format(rx_pin, tx_pin))
         # set up LED pin
-        self._led     = Pin(self.led_pin, Pin.OUT)
+        self.led = Pin(self.led_pin, Pin.OUT)
         # set up UART connection with custom TX and RX pins
         self.uart = UART(self.uart_id, baudrate=self.baudrate, bits=8, parity=None, stop=1, tx=Pin(self.tx_pin), rx=Pin(self.rx_pin))
         self._buffer = bytearray()
@@ -50,15 +47,13 @@ class RP2040UartSlave:
         self._verbose = verbose
 
     def enable_led(self, enable: bool):
-#       self._enable_led = enable
-        raise NotImplementedError('LED not supported on RP2040.')
+        self._enable_led = enable
 
     async def flash_led(self, duration_ms=30):
         if self._enable_led:
-            self._led.value(1)
-            await asyncio.sleep_ms(int(duration_ms/2))
-            self._led.value(0)
-            await asyncio.sleep_ms(int(duration_ms/2))
+            self._led.on()
+            await asyncio.sleep_ms(duration_ms)
+            self._led.off()
 
     async def receive_packet(self):
         while True:
@@ -84,10 +79,10 @@ class RP2040UartSlave:
                     try:
                         _payload = Payload.from_bytes(packet)
                         if self._verbose:
-                            self._log.info(Style.DIM + "valid packet received: {}".format(_payload))
+                            self._log.info('valid payload received: ' + Fore.GREEN + '{}'.format(_payload))
                         await self.flash_led()
                         return _payload
-                    except Exception as e:
+                    except Exception:
                         # corrupt packet: remove SYNC_HEADER and resync
                         self._log.error("packet decode error: {}. resyncing…".format(e))
                         self._buffer = self._buffer[1:]
@@ -118,7 +113,7 @@ class RP2040UartSlave:
                 packet = Payload.SYNC_HEADER + packet[len(Payload.SYNC_HEADER):]
             self.uart.write(packet)
             if self._verbose:
-                self._log.info("sent payload: " + Fore.GREEN + '{}'.format(payload))
+                self._log.info(Style.DIM + "sent payload: " + Fore.GREEN + '{}'.format(payload))
             await self.flash_led()
         except Exception as e:
             self._log.error("failed to send packet: {}".format(e))
