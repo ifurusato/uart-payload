@@ -8,25 +8,30 @@
 # author:   Murray Altheim
 # created:  2025-06-12
 # modified: 2025-06-22
+#
+# pins on WeAct STM32F405/STM32H562:
+#
+#    UART1_RX,PA9
+#    UART1_TX,PA10
+#
 
-from machine import UART, Pin
+from pyb import LED, Pin, UART
+from pyb import LED
+#from machine import UART, Pin
 import time
 from core.logger import Logger, Level
-from payload import Payload, SYNC_HEADER
+from payload import Payload
 
 class UARTSlave:
-    def __init__(self, uart_id=1, baudrate=115200, rx_pin=5, tx_pin=4, led_pin=25):
+    def __init__(self, uart_id=1, baudrate=115200):
         self._log = Logger('uart-slave', Level.INFO)
         self.baudrate = baudrate
         self.uart_id  = uart_id
-        self.rx_pin   = rx_pin
-        self.tx_pin   = tx_pin
-        self.led_pin  = led_pin  # Pin for the LED
-        self._log.info('pins: rx={}; tx={}.'.format(rx_pin, tx_pin))
-        # set up LED pin
-        self.led = Pin(self.led_pin, Pin.OUT)
+        # set up LED
+        self._led = LED(1)
         # set up UART connection with custom TX and RX pins
-        self.uart = UART(self.uart_id, baudrate=self.baudrate, bits=8, parity=None, stop=1, tx=Pin(self.tx_pin), rx=Pin(self.rx_pin))
+        self.uart = UART(uart_id)
+        self.uart.init(baudrate=baudrate, bits=8, parity=None, stop=1)
         self._verbose = False
         self._log.info('UART slave ready at baud rate: {}.'.format(baudrate))
         # Buffer and timing for sync protocol
@@ -37,10 +42,10 @@ class UARTSlave:
     def set_verbose(self, verbose: bool):
         self._verbose = verbose
 
-    def flash_led(self, duration_ms=50):
-        self.led.value(1)
-        time.sleep_ms(duration_ms)
-        self.led.value(0)
+#   def flash_led(self, duration_ms=50):
+#       self.led.value(1)
+#       time.sleep_ms(duration_ms)
+#       self.led.value(0)
 
     def receive_packet(self):
         """
@@ -64,24 +69,26 @@ class UARTSlave:
                 continue
 
             # Look for sync header
-            idx = self._buffer.find(SYNC_HEADER)
+            idx = self._buffer.find(Payload.SYNC_HEADER)
             if idx == -1:
                 # Trim buffer so it doesn't grow unbounded
-                if len(self._buffer) > len(SYNC_HEADER):
+                if len(self._buffer) > len(Payload.SYNC_HEADER):
                     if self._verbose:
                         self._log.debug("Sync header not found; trimming buffer")
-                    self._buffer = self._buffer[-(len(SYNC_HEADER)-1):]
+                    self._buffer = self._buffer[-(len(Payload.SYNC_HEADER)-1):]
                 continue
 
             # Check if enough bytes for a packet
             if len(self._buffer) - idx >= Payload.PACKET_SIZE:
+                packet = self._buffer[idx: idx + Payload.PACKET_SIZE]
+                self._log.info("SLAVE RX BYTES: {}".format(packet.hex(' ')))  # <-- ADD THIS LINE
                 packet = self._buffer[idx: idx + Payload.PACKET_SIZE]
                 self._buffer = self._buffer[idx + Payload.PACKET_SIZE:]
                 try:
                     pl = Payload.from_bytes(packet)
                     if self._verbose:
                         self._log.info("Valid packet received: {}".format(pl))
-                    self.flash_led()
+#                   self.flash_led()
                     return pl
                 except Exception as e:
                     self._log.error("Packet decode error: {}. Resyncing...".format(e))
@@ -97,13 +104,14 @@ class UARTSlave:
         Serializes and sends a payload packet with sync header.
         """
         try:
-            packet = payload.to_bytes()
-            if not packet.startswith(SYNC_HEADER):
-                packet = SYNC_HEADER + packet[len(SYNC_HEADER):]
+#           packet = payload.to_bytes()
+            packet = bytes(payload)
+            if not packet.startswith(Payload.SYNC_HEADER):
+                packet = Payload.SYNC_HEADER + packet[len(Payload.SYNC_HEADER):]
             self.uart.write(packet)
             if self._verbose:
                 self._log.info("Sent packet: {}".format(packet))
-            self.flash_led()
+#           self.flash_led()
         except Exception as e:
             self._log.error("Failed to send packet: {}".format(e))
 

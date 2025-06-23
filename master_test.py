@@ -13,7 +13,7 @@ from hardware.uart_master import UARTMaster
 
 if __name__ == "__main__":
     # instantiate the UARTMaster and run in a loop
-    _baudrate = 115200 # 460800 921600 1_000_000 
+    _baudrate = 460800 # 115200 921600 1_000_000 
     master = UARTMaster(baudrate=_baudrate)
     master.run()
 

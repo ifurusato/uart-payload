@@ -16,7 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 from colorama import init, Fore, Style
 init()
 
-from hardware.payload import Payload, SYNC_HEADER
+from hardware.payload import Payload
 from core.logger import Logger, Level
 import time
 
@@ -40,11 +40,13 @@ class AsyncUARTManager:
         self._log.info('ready.')
 
     def open(self):
+        print('🌸 open')
         if self.ser is None or not self.ser.is_open:
             self.ser = serial.Serial(self.port_name, self.baudrate, timeout=self.timeout)
             self._log.info("serial port {} opened.".format(self.port_name))
             
     def close(self):
+        print('🌸 close')
         if self.ser and self.ser.is_open:
             self.ser.close()
             self._log.info("serial port closed.")
@@ -55,21 +57,23 @@ class AsyncUARTManager:
     def _send_packet_sync(self, payload):
         packet_bytes = bytes(payload)  # Calls __bytes__ internally or to_bytes explicitly
         # Ensure sync header is present for robust protocol
-        if not packet_bytes.startswith(SYNC_HEADER):
-            packet_bytes = SYNC_HEADER + packet_bytes[len(SYNC_HEADER):]
+        if not packet_bytes.startswith(Payload.SYNC_HEADER):
+            packet_bytes = Payload.SYNC_HEADER + packet_bytes[len(Payload.SYNC_HEADER):]
         self.ser.write(packet_bytes)
         self.ser.flush()
-#       self._log.debug(Style.DIM + "sent: {}".format(repr(payload)))
+        self._log.info(Style.DIM + "sent: {}".format(repr(payload)))
 
     def send_packet(self, payload):
         '''
         Synchronous wrapper: schedule async send on background loop.
         '''
+        print('🌸 send_packet')
         future = asyncio.run_coroutine_threadsafe(
             self._send_packet_async(payload), self.loop)
         return future.result()  # wait for completion
         
     async def _send_packet_async(self, payload):
+        print('🌸 _send_packet_async')
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(self.executor, self._send_packet_sync, payload)
         
@@ -77,6 +81,7 @@ class AsyncUARTManager:
         '''
         Reads bytes, synchronizes on sync header, and returns the first valid Payload found.
         '''
+        print('🌸 a. _receive_packet_sync')
         start_time = time.time()
         while True:
             if self.ser.in_waiting:
@@ -84,20 +89,21 @@ class AsyncUARTManager:
                 self._rx_buffer += data
                 self._log.debug('read {} bytes from serial; buffer size now: {}'.format(len(data), len(self._rx_buffer)))
                 start_time = time.time()
-            idx = self._rx_buffer.find(SYNC_HEADER)
+            idx = self._rx_buffer.find(Payload.SYNC_HEADER)
             if idx == -1:
-                # Not found: trim buffer if too large
-                if len(self._rx_buffer) > len(SYNC_HEADER):
-                    self._rx_buffer = self._rx_buffer[-(len(SYNC_HEADER)-1):]
+                # not found: trim buffer if too large
+                if len(self._rx_buffer) > len(Payload.SYNC_HEADER):
+                    print('🌸 b. _receive_packet_sync too large')
+                    self._rx_buffer = self._rx_buffer[-(len(Payload.SYNC_HEADER)-1):]
                 time.sleep(0.005)
                 if time.time() - start_time > self._rx_timeout:
                     self._log.error("UART RX timeout; sync header not found, clearing buffer.")
                     self._rx_buffer = bytearray()
                     start_time = time.time()
                 continue
-
-            # Found sync header: do we have a full packet?
+            # found sync header: do we have a full packet?
             if len(self._rx_buffer) - idx >= Payload.PACKET_SIZE:
+                print('🌸 c. _receive_packet_sync header')
                 packet = self._rx_buffer[idx: idx + Payload.PACKET_SIZE]
                 self._rx_buffer = self._rx_buffer[idx + Payload.PACKET_SIZE:]
                 try:
@@ -106,11 +112,12 @@ class AsyncUARTManager:
                     return payload
                 except ValueError as e:
                     self._log.error("receive error: {}. Resyncing...".format(e))
-                    # Remove just the first header byte to attempt resync
+                    # remove just the first header byte to attempt resync
                     self._rx_buffer = self._rx_buffer[idx+1:]
                     continue
             else:
-                # Not enough bytes yet for a full packet
+                print('🌸 d. _receive_packet_sync filling...')
+                # not enough bytes yet for a full packet
                 time.sleep(0.005)
                 if time.time() - start_time > self._rx_timeout:
                     self._log.error('UART RX timeout; incomplete packet, clearing buffer.')
@@ -122,11 +129,13 @@ class AsyncUARTManager:
         '''
         Synchronous wrapper: schedule async receive on background loop.
         '''
+        print('🌸 receive_packet')
         future = asyncio.run_coroutine_threadsafe(
             self._receive_packet_async(), self.loop)
         return future.result()
         
     async def _receive_packet_async(self):
+        print('🌸 _receive_packet_async')
         loop = asyncio.get_running_loop()
         return await loop.run_in_executor(self.executor, self._receive_packet_sync)
     
@@ -134,6 +143,7 @@ class AsyncUARTManager:
         '''
         Convenience method to receive a Payload and return the tuple (cmd, pfwd, sfwd, paft, saft).
         '''
+        print('🌸 receive_values')
         payload = self.receive_packet()
         if payload:
             return (payload.cmd.decode('ascii'), payload.pfwd, payload.sfwd, payload.paft, payload.saft)

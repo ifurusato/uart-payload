@@ -32,8 +32,10 @@ class UARTMaster:
         '''
         Send a Payload object after converting it to bytes.
         '''
+        packet_bytes = bytes(payload)
+        self._log.info(f"MASTER TX BYTES: {packet_bytes.hex(' ')}") # TEMP
         self.uart.send_packet(payload)
-        self._log.debug("sent: {}".format(payload))
+        self._log.info("master sent: {}".format(payload))
 
     def receive_payload(self):
         '''
