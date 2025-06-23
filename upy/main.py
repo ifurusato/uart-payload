@@ -20,8 +20,10 @@ async def wait_a_bit():
     from pyb import LED
     _led = LED(1)
     for _ in range(3):
-        _led.toggle()
-        await asyncio.sleep(1)
+        _led.on()
+        await asyncio.sleep_ms(50)
+        _led.off()
+        await asyncio.sleep_ms(950)
     _led.off()
 
 async def main():
@@ -46,10 +48,11 @@ async def main():
         else:
             _log.warning("no valid packet received.")
 
+# for use from the REPL
 def exec():
     asyncio.run(main())
 
-#if __name__ == "__main__":
-exec()
+if __name__ == "__main__":
+    asyncio.run(main())
 
 #EOF
