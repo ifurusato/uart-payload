@@ -46,7 +46,7 @@ class UARTSlave:
         self.uart = UART(uart_id)
         self.uart.init(baudrate=baudrate, bits=8, parity=None, stop=1)
         self._buffer = bytearray()
-        self._last_rx = time.ticks_ms()
+        self._last_rx    = time.ticks_ms()
         self._timeout_ms = 250
         self._verbose    = False
         self._enable_led = False
@@ -58,10 +58,10 @@ class UARTSlave:
     def enable_led(self, enable: bool):
         self._enable_led = enable
 
-    def flash_led(self, duration_ms=30):
+    async def flash_led(self, duration_ms=30):
         if self._enable_led:
             self._led.on()
-            time.sleep_ms(duration_ms)
+            await asyncio.sleep_ms(duration_ms)
             self._led.off()
 
     async def receive_packet(self):
@@ -78,7 +78,7 @@ class UARTSlave:
                 if self._buffer and time.ticks_diff(time.ticks_ms(), self._last_rx) > self._timeout_ms:
                     self._log.error("UART RX timeout; clearing buffer…")
                     self._buffer = bytearray()
-                await asyncio.sleep(0.001)
+                await asyncio.sleep(0) # was 0.005
                 continue
             # check if buffer starts with SYNC_HEADER (avoid .find if possible)
             if self._buffer.startswith(Payload.SYNC_HEADER):
@@ -89,7 +89,7 @@ class UARTSlave:
                         _payload = Payload.from_bytes(packet)
                         if self._verbose:
                             self._log.info(Style.DIM + "valid packet received: {}".format(_payload))
-                        self.flash_led()
+                        await self.flash_led()
                         return _payload
                     except Exception:
                         # corrupt packet: remove SYNC_HEADER and resync
@@ -123,7 +123,7 @@ class UARTSlave:
             self.uart.write(packet)
             if self._verbose:
                 self._log.info("sent payload: " + Fore.GREEN + '{}'.format(payload))
-            self.flash_led()
+            await self.flash_led()
         except Exception as e:
             self._log.error("failed to send packet: {}".format(e))
 

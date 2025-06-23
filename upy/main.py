@@ -24,7 +24,7 @@ async def main():
     _baudrate = 1_000_000 # 115200 460800 921600 
     slave = UARTSlave(uart_id=_uart_id, baudrate=_baudrate)
 #   slave.set_verbose(True)
-    slave.enable_led(True)
+#   slave.enable_led(True)
     _log.info("UART slave: waiting for command from master…")
     while True:
         packet = await slave.receive_packet()
