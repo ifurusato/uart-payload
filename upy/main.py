@@ -21,8 +21,9 @@ def main():
 
     _log = Logger('main', Level.INFO)
     _uart_id = 4
-    _baudrate = 460800 # 115200 921600 1_000_000 
+    _baudrate = 1_000_000 # 115200 460800 921600 
     slave = UARTSlave(uart_id=_uart_id, baudrate=_baudrate)
+#   slave.set_verbose(True)
     _log.info("UART slave: waiting for command from master…")
     while True:
         packet = slave.receive_packet()

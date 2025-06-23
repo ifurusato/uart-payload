@@ -37,7 +37,7 @@ from core.logger import Logger, Level
 from payload import Payload
 
 class UARTSlave:
-    def __init__(self, uart_id=2, baudrate=115200):
+    def __init__(self, uart_id=1, baudrate=115200):
         self._log = Logger('uart-slave', Level.INFO)
         self.uart_id  = uart_id
         self.baudrate = baudrate
@@ -51,7 +51,7 @@ class UARTSlave:
         self._last_rx = time.ticks_ms()
         self._timeout_ms = 250
         self._verbose = False
-        self._log.info('UART slave ready at baud rate: {}.'.format(baudrate))
+        self._log.info('UART {} slave ready at baud rate: {}.'.format(uart_id, baudrate))
 
     def set_verbose(self, verbose: bool):
         self._verbose = verbose
@@ -119,7 +119,7 @@ class UARTSlave:
                 packet = Payload.SYNC_HEADER + packet[len(Payload.SYNC_HEADER):]
             self.uart.write(packet)
             if self._verbose:
-                self._log.info("sent packet: {}".format(packet))
+                self._log.info("sent payload: " + Fore.GREEN + '{}'.format(payload))
             self.flash_led()
         except Exception as e:
             self._log.error("failed to send packet: {}".format(e))

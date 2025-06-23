@@ -51,8 +51,6 @@ class Payload:
             raise ValueError("invalid sync header")
         data_and_crc = packet[len(Payload.SYNC_HEADER):]
         data, crc = data_and_crc[:-1], data_and_crc[-1]
-        print(f"🍏 Master CRC input: {data.hex()} (len={len(data)})")
-        print(f"🍏 Master CRC calculated: {Payload.calculate_crc8(data):02x}")
         calc_crc = cls.calculate_crc8(data)
         if crc != calc_crc:
             raise ValueError("CRC mismatch.")
