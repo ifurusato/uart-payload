@@ -13,11 +13,15 @@ The master sends a Payload to the slave, which responds with a Payload.
 Hardware Configuration
 **********************
 
+THere are two implementations, one for the STM32F405 or STM32H562, and
+another for the RP2040. As typical, actual pin assignments will depend
+on your hardware.
+
 While you can certainly change pin assignments, the current ones are::
 
-    Raspberry Pi ->  Pico RP2040 
-    GPIO 14 TX   ->  GP4 UART1 RX
-    GPIO 15 TX   ->  GP5 UART1 RX
+    Raspberry Pi   ->  Pico RP2040    -> STM32
+    GPIO 14 TX     ->  GP4 UART1 RX      TBD
+    GPIO 15 TX     ->  GP5 UART1 RX      TBD
 
 Important: see Status below
 

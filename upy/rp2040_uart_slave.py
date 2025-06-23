@@ -11,6 +11,9 @@
 #
 # A UART slave for the RP2040.
 #
+#  RX_PIN = 25
+#  TX_PIN = 24
+#
 # Note that pins may vary depending on the hardware implementation.
 #
 
@@ -22,8 +25,8 @@ from colorama import Fore, Style
 from core.logger import Logger, Level
 from payload import Payload
 
-class UARTSlave:
-    def __init__(self, uart_id=1, baudrate=115200, rx_pin=5, tx_pin=4, led_pin=25):
+class RP2040UartSlave:
+    def __init__(self, uart_id=1, baudrate=115200, rx_pin=25, tx_pin=24, led_pin=11):
         self._log = Logger('uart-slave', Level.INFO)
         self.uart_id  = uart_id
         self.baudrate = baudrate
@@ -33,7 +36,7 @@ class UARTSlave:
         self.led_pin  = led_pin # Pin for the LED
         self._log.info('pins: rx={}; tx={}.'.format(rx_pin, tx_pin))
         # set up LED pin
-        self.led = Pin(self.led_pin, Pin.OUT)
+        self._led     = Pin(self.led_pin, Pin.OUT)
         # set up UART connection with custom TX and RX pins
         self.uart = UART(self.uart_id, baudrate=self.baudrate, bits=8, parity=None, stop=1, tx=Pin(self.tx_pin), rx=Pin(self.rx_pin))
         self._buffer = bytearray()
@@ -47,13 +50,15 @@ class UARTSlave:
         self._verbose = verbose
 
     def enable_led(self, enable: bool):
-        self._enable_led = enable
+#       self._enable_led = enable
+        raise NotImplementedError('LED not supported on RP2040.')
 
     async def flash_led(self, duration_ms=30):
         if self._enable_led:
-            self._led.on()
-            await asyncio.sleep_ms(duration_ms)
-            self._led.off()
+            self._led.value(1)
+            await asyncio.sleep_ms(int(duration_ms/2))
+            self._led.value(0)
+            await asyncio.sleep_ms(int(duration_ms/2))
 
     async def receive_packet(self):
         while True:
@@ -82,7 +87,7 @@ class UARTSlave:
                             self._log.info(Style.DIM + "valid packet received: {}".format(_payload))
                         await self.flash_led()
                         return _payload
-                    except Exception:
+                    except Exception as e:
                         # corrupt packet: remove SYNC_HEADER and resync
                         self._log.error("packet decode error: {}. resyncing…".format(e))
                         self._buffer = self._buffer[1:]

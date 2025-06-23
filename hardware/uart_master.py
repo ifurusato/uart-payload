@@ -26,10 +26,11 @@ class UARTMaster:
     def __init__(self, port='/dev/serial0', baudrate=115200):
         self._log = Logger('uart-master', Level.INFO)
         _use_async_uart_manager = False # config?
+        _timeout = 0.05 # 0.001 
         if _use_async_uart_manager:
-            self.uart = AsyncUARTManager(port=port, baudrate=baudrate)
+            self.uart = AsyncUARTManager(port=port, baudrate=baudrate, timeout=_timeout)
         else:
-            self.uart = SyncUARTManager(port=port, baudrate=baudrate)
+            self.uart = SyncUARTManager(port=port, baudrate=baudrate, timeout=_timeout)
         self.uart.open()
         self._log.info('UART master ready at baud rate: {}.'.format(baudrate))
 

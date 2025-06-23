@@ -93,7 +93,7 @@ class Stm32UartSlave:
                             self._log.info(Style.DIM + "valid packet received: {}".format(_payload))
                         await self.flash_led()
                         return _payload
-                    except Exception:
+                    except Exception as e:
                         # corrupt packet: remove SYNC_HEADER and resync
                         self._log.error("packet decode error: {}. resyncing…".format(e))
                         self._buffer = self._buffer[1:]
