@@ -92,7 +92,7 @@ class UARTMaster:
 
                 start_time = dt.now()
                 # create Payload with cmd (2 letters) and floats for pfwd, sfwd, paft, saft
-                payload = Payload("MO", data, data, -10.0, -20.0)
+                payload = Payload("GO", data, data, -10.0, -20.0)
                 # send the Payload object
                 self.send_payload(payload)
                 try:
