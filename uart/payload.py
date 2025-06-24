@@ -10,7 +10,7 @@
 # modified: 2025-06-22
 
 import struct
-from hardware.crc8_table import CRC8_TABLE
+from uart.crc8_table import CRC8_TABLE
 
 class Payload:
     # Sync header: 'zz' for human-readability. To switch to a binary header, just uncomment the next line.

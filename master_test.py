@@ -9,7 +9,7 @@
 # created:  2025-06-12
 # modified: 2025-06-12
 
-from hardware.uart_master import UARTMaster
+from uart.uart_master import UARTMaster
 
 if __name__ == "__main__":
     # instantiate the UARTMaster and run in a loop

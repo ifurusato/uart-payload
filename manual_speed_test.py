@@ -9,7 +9,7 @@
 # created:  2025-06-12
 # modified: 2025-06-24
 
-from hardware.uart_master import UARTMaster
+from uart.uart_master import UARTMaster
 from hardware.digital_pot_async import DigitalPotentiometer
 
 class ValueProvider:

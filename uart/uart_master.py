@@ -7,7 +7,7 @@
 #
 # author:   Murray Altheim
 # created:  2025-06-12
-# modified: 2025-06-23
+# modified: 2025-06-24
 
 import time
 from typing import Callable, Optional
@@ -15,9 +15,9 @@ from datetime import datetime as dt
 from colorama import init, Fore, Style
 init()
 
-from hardware.async_uart_manager import AsyncUARTManager
-from hardware.sync_uart_manager import SyncUARTManager
-from hardware.payload import Payload
+from uart.async_uart_manager import AsyncUARTManager
+from uart.sync_uart_manager import SyncUARTManager
+from uart.payload import Payload
 from core.logger import Logger, Level
 
 class UARTMaster:

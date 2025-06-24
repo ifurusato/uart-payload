@@ -9,16 +9,16 @@
 # created:  2025-06-12
 # modified: 2025-06-12
 
-import serial
 import asyncio
+import time
+import serial
 from threading import Thread
 from concurrent.futures import ThreadPoolExecutor
 from colorama import init, Fore, Style
 init()
 
-from hardware.payload import Payload
+from uart.payload import Payload
 from core.logger import Logger, Level
-import time
 
 class AsyncUARTManager:
     def __init__(self, port='/dev/serial0', baudrate=115200, tx_timeout_ms=25, rx_timeout_ms=25):
